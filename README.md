@@ -2,6 +2,8 @@
 
 This is an integration between Home Assistant and stokercloud.dk
 
+I no longer own a NBE furnace, so at this point you can consider the code unmaintained. However, if you want to maintain it or if you have small PRs I'm happy to merge them. For the same reason Issues are disabled, as I don't have the opportunity to support the project.
+
 # Install
 
 You can install the plugin via HACS using the following steps.
