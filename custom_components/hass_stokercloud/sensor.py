@@ -12,12 +12,12 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 
-from stokercloud.controller_data import PowerState, Unit, Value
+from stokercloud.controller_data import PowerState, Unit, Value, Substate, State
 from stokercloud.client import Client as StokerCloudClient
 
 
 import datetime
-from homeassistant.const import CONF_USERNAME, UnitOfPower, UnitOfTemperature, UnitOfMass
+from homeassistant.const import CONF_USERNAME, UnitOfPower, UnitOfTemperature, UnitOfMass, UnitOfEnergy, PERCENTAGE
 from .const import DOMAIN
 from .mixins import StokerCloudControllerMixin
 
@@ -36,9 +36,15 @@ async def async_setup_entry(hass, config, async_add_entities):
         StokerCloudControllerBinarySensor(client, serial, 'Alarm', 'alarm', 'problem'),
         StokerCloudControllerSensor(client, serial, 'Boiler Temperature', 'boiler_temperature_current', SensorDeviceClass.TEMPERATURE),
         StokerCloudControllerSensor(client, serial, 'Boiler Temperature Requested', 'boiler_temperature_requested', SensorDeviceClass.TEMPERATURE),
-        StokerCloudControllerSensor(client, serial, 'Boiler Effect', 'boiler_kwh', SensorDeviceClass.POWER),
+        StokerCloudControllerSensor(client, serial, 'Boiler Effect', 'boiler_kw', SensorDeviceClass.POWER),
         StokerCloudControllerSensor(client, serial, 'Total Consumption', 'consumption_total', state_class=SensorStateClass.TOTAL_INCREASING), # state class STATE_CLASS_TOTAL_INCREASING
         StokerCloudControllerSensor(client, serial, 'State', 'state'),
+        StokerCloudControllerSensor(client, serial, 'Hopper Content', 'hopper_content'),
+        StokerCloudControllerSensor(client, serial, 'Output', 'output', state_class=SensorStateClass.MEASUREMENT),
+        StokerCloudControllerSensor(client, serial, 'Output Percent', 'output_pct', state_class=SensorStateClass.MEASUREMENT),
+        StokerCloudControllerSensor(client, serial, 'Substate', 'substate'),
+        StokerCloudControllerSensor(client, serial, 'Substate Seconds', 'substatesecs'),
+        
 
         StokerCloudWaterHeaterTemperatureSensor(client, serial, 'Current Water Heater Temperature', 'hotwater_temperature_current'),
         StokerCloudWaterHeaterTemperatureSensor(client, serial, 'Requested Water Heater Temperature', 'hotwater_temperature_requested'),
@@ -84,16 +90,30 @@ class StokerCloudControllerSensor(StokerCloudControllerMixin, SensorEntity):
         if self._state:
             if isinstance(self._state, Value):
                 return self._state.value
+            if isinstance(self._state, Substate):
+                return self._state.name or self._state.value
+            if isinstance(self._state, State):
+                return self._state.name or self._state.value
             return self._state
 
     @property
     def native_unit_of_measurement(self):
         if self._state and isinstance(self._state, Value):
             return {
-                Unit.KWH: UnitOfPower.WATT,
+                Unit.KW: UnitOfPower.KILO_WATT,
+                Unit.KWH: UnitOfEnergy.KILO_WATT_HOUR,
+                Unit.PERCENT: PERCENTAGE,
                 Unit.DEGREE: UnitOfTemperature.CELSIUS,
                 Unit.KILO_GRAM: UnitOfMass.KILOGRAMS,
             }.get(self._state.unit)
+
+    @property
+    def extra_state_attributes(self):
+        if isinstance(self._state, Substate):
+            return {"substate_label": self._state.label}
+        if isinstance(self._state, State):
+            return {"state_label": self._state.label}
+        return {}
 
 class StokerCloudWaterHeaterTemperatureSensor(StokerCloudControllerMixin, SensorEntity):
     """Representation of a Water Heater Temperature Sensor."""
